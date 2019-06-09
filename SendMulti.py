@@ -49,6 +49,30 @@ async def account_create(walletID):
     except:
         return None
 
+async def load_seed():
+    try:
+        seed = input("Enter the seed of the account you want to use to distribute from: \n")
+        payload = {
+            "action": "wallet_create",
+            "seed": seed
+        }
+        response = await json_get(payload)
+        walletID = response['wallet']
+        depositAddress = response['account']
+        try:
+            print("Account and wallet ID are being save to lastrun.txt to minimise potential losses")
+            file = open("lastrun.txt", "w")
+            file.write("WalletID: " + walletID)
+            file.write("\nAddress: " + depositAddress)
+            file.close()
+            return walletID, depositAddress
+        except:
+            print("lastrun.txt could not be written")
+            return walletID, depositAddress
+    except:
+        print("Something went wrong loading the seed")
+        return None
+
 
 async def send_funds(walletID, source):
     num_lines = sum(1 for line in open('addresses.txt'))
@@ -66,16 +90,16 @@ async def send_funds(walletID, source):
                 "source": source,
                 "destination": account,
                 "amount": str(int(banperacc)*10**29),
-                "id": source+account
             }
             print("Sending " + str(banperacc) + "ban to " + account)
             response = await json_get(payload)
             try:
                 block = response['block']
+                print("Account: " + account + ":block: " + block)
             except:
                 print(response)
                 await return_spare(walletID, source)
-            print("Account: " + account + ":block: " + block)
+
 
 
 async def destroy_wallet(walletID):
@@ -87,8 +111,10 @@ async def destroy_wallet(walletID):
     response = await json_get(payload)
     if response['destroyed'] == "1":
         print("Wallet has been destroyed")
+    elif response['error'] == "Wallet not found":
+        print("Wallet already deleted")
     else:
-        print("Wallet wasn't destroyed for some reason")
+        print("Wallet wasn't destroyed for some reason! Use wallet destroy function to manually destroy it")
 
 
 async def return_spare(walletID, depositAddress):
@@ -102,11 +128,13 @@ async def return_spare(walletID, depositAddress):
         "source": depositAddress,
         "destination": returnAddr,
         "amount": balanceraw,
-        "id": walletID + returnAddr + "return"
     }
-    response = await json_get(payload)
-    block = response['block']
-    print("Return block: " + block)
+    try:
+        response = await json_get(payload)
+        block = response['block']
+        print("Return block: " + block)
+    except:
+        print("No valid address entered. Funds remain in distribution address")
 
 
 async def get_balance(address):
@@ -125,17 +153,44 @@ async def main():
     print("The node in use is the public Banano node found at nanoo.tools. If using regularly on a large scale, please direct at your own node")
     accept = input("I am not accountable for any losses from using this tool. Type \"Y\" if you agree \n")
     if accept == "y" or accept == "Y":
-        print("\nCreating an account to deposit funds to...")
-        walletID = await create_wallet()
-        depositAddress = await account_create(walletID)
-        print("Deposit funds you want split to this address: " + depositAddress)
-        print("ENSURE ADDRESS IS COPIED CORRECTLY AS FUNDS CANNOT BE RETURNED")
-        input("Press enter once funds have been RECEIVED (check creeper.banano.cc/explorer/account/" + depositAddress + ")\n")
-        print("Sending funds to all accounts...")
-        await send_funds(walletID, depositAddress)
-        print("Funds sent...")
-        await return_spare(walletID, depositAddress)
-        await destroy_wallet(walletID)
+
+        menu = {}
+        menu['1'] = "Use random address"
+        menu['2'] = "Use specific address (requires seed!!)"
+        menu['3'] = "Destroy wallet on node (requires walledID)"
+        menu['4'] = "Exit"
+        while True:
+            options = menu.keys()
+            for entry in sorted(options):
+                print(entry, menu[entry])
+            selection = input("Please Select:")
+            if selection == '1':
+                print("\nCreating an account to deposit funds to...")
+                walletID = await create_wallet()
+                depositAddress = await account_create(walletID)
+            elif selection == '2':
+                print("This will distribute all of the bans in the account so ensure it only has the desired bans!!!")
+                walletID, depositAddress = await load_seed()
+            elif selection == '3':
+                walletID = input("Enter the wallet ID you would like to destroy to help keep funds safu\n")
+                await destroy_wallet(walletID)
+                break
+            elif selection == '4':
+                print("Quitting")
+                break
+            else:
+                print("Unknown Option Selected!")
+
+
+            print("Deposit funds you want split to this address: " + depositAddress)
+            print("ENSURE ADDRESS IS COPIED CORRECTLY AS FUNDS CANNOT BE RETURNED")
+            input(
+                "Press enter once funds have been RECEIVED (check creeper.banano.cc/explorer/account/" + depositAddress + ")\n")
+            print("Sending funds to all accounts...")
+            await send_funds(walletID, depositAddress)
+            print("Funds sent...")
+            await return_spare(walletID, depositAddress)
+            await destroy_wallet(walletID)
 
     else:
         return None
