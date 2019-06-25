@@ -7,7 +7,9 @@ aiohttp
 asyncio  
 json  
 aiofiles  
-bitstring
+bitstring  
+
+Windows users can run "setup.bat" to install the dependencies automatically
   
 Addresses you want to send to should be in "addresses.txt" with each address being on a new line.  
 Download both SendMulti.py and validations.py in order to run the application

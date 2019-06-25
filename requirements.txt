@@ -1,0 +1,5 @@
+aiohttp
+asyncio
+json
+aiofiles
+bitstring
