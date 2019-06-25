@@ -3,9 +3,10 @@
 
 SendMulti.py is written in Python 3.7
 The dependencies are    
-import aiohttp  
-import asyncio  
-import json  
-import aiofiles  
+aiohttp  
+asyncio  
+json  
+aiofiles  
+bitstring
   
-  Addresses you want to send to should be in "addresses.txt" with each address being followed by a new line
+  Addresses you want to send to should be in "addresses.txt" with each address being on a new line
