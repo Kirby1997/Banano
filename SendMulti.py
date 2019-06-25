@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import json
 import aiofiles
+from validations import Validations
 
 API_URL = 'https://api-beta.banano.cc:443'
 
@@ -9,8 +10,8 @@ API_URL = 'https://api-beta.banano.cc:443'
 async def json_get(payload):
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(API_URL, json=payload, timeout=100) as resp:
-                jsonResp = await resp.json(content_type=None)
+            async with session.post(API_URL, json=payload, timeout=100) as resp:
+                jsonResp = await resp.json()
                 return jsonResp
     except BaseException:
         print("Something went wrong. To prevent malfunction please withdraw your bans!!!")
@@ -28,6 +29,7 @@ async def create_wallet():
         print("WalletID: " + walletID)
         return walletID
     except:
+        print(response)
         return None
 
 
@@ -75,31 +77,40 @@ async def load_seed():
 
 
 async def send_funds(walletID, source):
-    num_lines = sum(1 for line in open('addresses.txt'))
+    valid_addresses = set()
+    async with aiofiles.open("addresses.txt") as file:
+        async for line in file:
+            if Validations.get_banano_address(line) is not None:
+                account = Validations.get_banano_address(line)
+                if Validations.validate_address(account) is True:
+                    valid_addresses.add(account)
+                else:
+                    print(account + " is not a valid account")
+            else:
+                print(account + " does not fit the form of an address")
+    num_addresses = len(valid_addresses)
     sourcebal = await get_balance(source)
     sourcebal = int(sourcebal)/10**29
-    remainder = sourcebal % num_lines
-    banperacc = (sourcebal-remainder)/num_lines
-    print("Sending " + str(banperacc) + "ban to each account!")
-    async with aiofiles.open("addresses.txt") as file:
-        async for account in file:
-            account = account.strip()
-            payload = {
-                "action": "send",
-                "wallet": walletID,
-                "source": source,
-                "destination": account,
-                "amount": str(int(banperacc)*10**29),
+    remainder = sourcebal % num_addresses
+    banperacc = (sourcebal-remainder)/num_addresses
+    print("Sending " + str(banperacc) + "ban to " + str(num_addresses) + " accounts!")
+    for account in valid_addresses:
+        account = account.strip()
+        payload = {
+            "action": "send",
+            "wallet": walletID,
+            "source": source,
+            "destination": account,
+            "amount": str(int(banperacc)*10**29),
             }
-            print("Sending " + str(banperacc) + "ban to " + account)
-            response = await json_get(payload)
-            try:
-                block = response['block']
-                print("Account: " + account + ":block: " + block)
-            except:
-                print(response)
-                await return_spare(walletID, source)
-
+        print("Sending " + str(banperacc) + "ban to " + account)
+        response = await json_get(payload)
+        try:
+            block = response['block']
+            print("Account: " + account + ":block: " + block)
+        except:
+            print(response)
+            await return_spare(walletID, source)
 
 
 async def destroy_wallet(walletID):
@@ -120,21 +131,34 @@ async def destroy_wallet(walletID):
 async def return_spare(walletID, depositAddress):
     balanceraw = await get_balance(depositAddress)
     balanceint = int(balanceraw)/10**29
-    print("\nThe temporary deposit address still has " + str(balanceint) + "ban remaining!")
-    returnAddr = input("Enter the banano address you would like to return the spare to \n")
-    payload = {
-        "action": "send",
-        "wallet": walletID,
-        "source": depositAddress,
-        "destination": returnAddr,
-        "amount": balanceraw,
-    }
-    try:
-        response = await json_get(payload)
-        block = response['block']
-        print("Return block: " + block)
-    except:
-        print("No valid address entered. Funds remain in distribution address")
+    if balanceint == 0:
+        return None
+    else:
+        print("\nThe temporary deposit address still has " + str(balanceint) + "ban remaining!")
+        while True:
+            returnAddr = input("Enter the banano address you would like to return the spare to \n")
+            if Validations.get_banano_address(returnAddr) is not None:
+                returnAddr = Validations.get_banano_address(returnAddr)
+                if Validations.validate_address(returnAddr) is True:
+                    print("Sending remaining bans to: " + returnAddr)
+                    break
+                else:
+                    print(returnAddr + " is not a valid account")
+            else:
+                print(returnAddr + " does not fit the form of an address")
+        payload = {
+            "action": "send",
+            "wallet": walletID,
+            "source": depositAddress,
+            "destination": returnAddr,
+            "amount": balanceraw
+        }
+        try:
+            response = await json_get(payload)
+            block = response['block']
+            print("Return block: " + block)
+        except:
+            print("Publishing block failed. Funds remain in distribution address\n " + payload)
 
 
 async def get_balance(address):
@@ -145,6 +169,18 @@ async def get_balance(address):
     response = await json_get(payload)
     balance = response['balance']
     return balance
+
+
+async def process_funds(walletID, depositAddress):
+    print("Deposit funds you want split to this address: " + depositAddress)
+    print("ENSURE ADDRESS IS COPIED CORRECTLY AS FUNDS CANNOT BE RETURNED")
+    input(
+        "Press enter once funds have been RECEIVED (check creeper.banano.cc/explorer/account/" + depositAddress + ")\n")
+    print("Sending funds to all accounts...")
+    await send_funds(walletID, depositAddress)
+    print("Funds sent...")
+    await return_spare(walletID, depositAddress)
+    await destroy_wallet(walletID)
 
 
 async def main():
@@ -168,9 +204,11 @@ async def main():
                 print("\nCreating an account to deposit funds to...")
                 walletID = await create_wallet()
                 depositAddress = await account_create(walletID)
+                await process_funds(walletID, depositAddress)
             elif selection == '2':
                 print("This will distribute all of the bans in the account so ensure it only has the desired bans!!!")
                 walletID, depositAddress = await load_seed()
+                await process_funds(walletID, depositAddress)
             elif selection == '3':
                 walletID = input("Enter the wallet ID you would like to destroy to help keep funds safu\n")
                 await destroy_wallet(walletID)
@@ -180,17 +218,6 @@ async def main():
                 break
             else:
                 print("Unknown Option Selected!")
-
-
-            print("Deposit funds you want split to this address: " + depositAddress)
-            print("ENSURE ADDRESS IS COPIED CORRECTLY AS FUNDS CANNOT BE RETURNED")
-            input(
-                "Press enter once funds have been RECEIVED (check creeper.banano.cc/explorer/account/" + depositAddress + ")\n")
-            print("Sending funds to all accounts...")
-            await send_funds(walletID, depositAddress)
-            print("Funds sent...")
-            await return_spare(walletID, depositAddress)
-            await destroy_wallet(walletID)
 
     else:
         return None
