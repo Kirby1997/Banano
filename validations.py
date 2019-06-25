@@ -63,18 +63,3 @@ class Validations():
 
         return False
 
-async def main():
-    valid_addresses = set()
-    async with aiofiles.open("addresses.txt") as file:
-        async for account in file:
-            if Validations.get_banano_address(account) is not None:
-                if Validations.validate_address(account) is True:
-                    valid_addresses.add(account)
-                    print(valid_addresses)
-                else:
-                    print(account + " is not a valid account")
-            else:
-                print(account + " does not fit the form of an address")
-
-
-asyncio.run(main())
