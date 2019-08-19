@@ -2,7 +2,6 @@ import asyncio
 import aiohttp
 import json
 
-
 API_URL = 'https://api-beta.banano.cc:443'
 
 
@@ -18,7 +17,7 @@ async def json_get(payload):
 
 
 async def main():
-    source = input("Enter an address to see transaction totals for ")
+    source = input("Enter an address to see transaction totals for: ")
     tranType = input("Do you want \"receive\" or \"send\" transaction totals? ")
     noTrans = input("How many transactions should be retrieved: ")
     if noTrans == "":
@@ -35,7 +34,7 @@ async def main():
         if destination not in totals and i['type'] == tranType:
             totals[destination] = 0
 
-        if i['type'] == tranType and i['account'] in totals:
+        if (i['type'] == tranType or tranType == "") and i['account'] in totals:
             totals[destination] = totals[destination] + int(amount)
     totals = sorted(totals.items(), key=lambda kv: (kv[1], kv[0]))
     print(json.dumps(totals, indent=2))

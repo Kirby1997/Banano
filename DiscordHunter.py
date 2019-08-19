@@ -36,7 +36,7 @@ async def get_discord(account):
 
 
 async def main():
-    source = input("Enter an address to see transaction totals for ")
+    source = input("Enter an address to find Discord connections for:  ")
     tranType = input("Do you want \"receive\" or \"send\" transaction totals? ")
     noTrans = input("How many transactions should be retrieved: ")
     if noTrans == "":

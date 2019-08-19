@@ -7,8 +7,7 @@ import re
 
 from bitstring import BitArray
 from hashlib import blake2b
-import aiofiles
-import asyncio
+
 
 class Validations():
 
