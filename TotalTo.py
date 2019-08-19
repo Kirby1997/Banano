@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+import json
 
 
 API_URL = 'https://api-beta.banano.cc:443'
@@ -36,11 +37,9 @@ async def main():
 
         if i['type'] == tranType and i['account'] in totals:
             totals[destination] = totals[destination] + int(amount)
-
-    print(totals)
+    totals = sorted(totals.items(), key=lambda kv: (kv[1], kv[0]))
+    print(json.dumps(totals, indent=2))
 
 
 asyncio.run(main())
-
-input()
 
