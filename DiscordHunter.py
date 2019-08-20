@@ -57,6 +57,10 @@ async def main():
                 if rep == 'ban_1tipbotgges3ss8pso6xf76gsyqnb69uwcxcyhouym67z7ofefy1jz7kepoy':
                     user = await get_discord(account)
                     rep = user
+                if rep == 'ban_1banbet1hxxe9aeu11oqss9sxwe814jo9ym8c98653j1chq4k4yaxjsacnhc':
+                    rep = "BanBet"
+                if rep == 'ban_1ka1ium4pfue3uxtntqsrib8mumxgazsjf58gidh1xeo5te3whsq8z476goo':
+                    rep = "Kalium"
                 pairs[account] = rep
 
     print(json.dumps(pairs, indent=4))
