@@ -14,14 +14,24 @@ async def node_get(payload):
                 return jsonResp
     except BaseException:
         print(BaseException)
+        print(jsonResp)
         return None
 
 
-async def get_rep(account):
+async def get_rep(account, filterDiscord):
     payload = {"action": "account_representative", "account": account}
     response = await node_get(payload)
-    rep = response['representative']
-    return rep
+    try:
+        rep = response['representative']
+    except BaseException:
+        print(BaseException)
+        print(payload)
+        print(response)
+        rep = response['error']
+    if rep == "ban_1tipbotgges3ss8pso6xf76gsyqnb69uwcxcyhouym67z7ofefy1jz7kepoy" and filterDiscord in ["yes", "y", "Yes", "Y"]:
+        return ""
+    else:
+        return rep
 
 
 async def get_discord(account):
@@ -37,8 +47,10 @@ async def get_discord(account):
 
 async def main():
     source = input("Enter an address to find Discord connections for:  ")
-    tranType = input("Do you want \"receive\" or \"send\" transaction totals? ")
+    tranType = input("Filter \"receive\" or \"send\" transactions? ")
     noTrans = input("How many transactions should be retrieved: ")
+    filterDiscord = input("Filter out Discord users? \"yes\" or \"no\": ")
+
     if noTrans == "":
         noTrans = 1
 
@@ -53,15 +65,18 @@ async def main():
         if account not in addresses:
             addresses.add(account)
             if i['type'] == tranType:
-                rep = await get_rep(account)
-                if rep == 'ban_1tipbotgges3ss8pso6xf76gsyqnb69uwcxcyhouym67z7ofefy1jz7kepoy':
-                    user = await get_discord(account)
-                    rep = user
+                rep = await get_rep(account, filterDiscord)
                 if rep == 'ban_1banbet1hxxe9aeu11oqss9sxwe814jo9ym8c98653j1chq4k4yaxjsacnhc':
                     rep = "BanBet"
-                if rep == 'ban_1ka1ium4pfue3uxtntqsrib8mumxgazsjf58gidh1xeo5te3whsq8z476goo':
+                elif rep == 'ban_1ka1ium4pfue3uxtntqsrib8mumxgazsjf58gidh1xeo5te3whsq8z476goo':
                     rep = "Kalium"
-                pairs[account] = rep
+                elif rep == 'ban_1tipbotgges3ss8pso6xf76gsyqnb69uwcxcyhouym67z7ofefy1jz7kepoy':
+                    user = await get_discord(account)
+                    rep = user
+                elif rep == 'Account not found':
+                    rep = "Account not opened"
+                if rep != "":
+                    pairs[account] = rep
 
     print(json.dumps(pairs, indent=4))
 
