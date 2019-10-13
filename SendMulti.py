@@ -1,6 +1,5 @@
 import aiohttp
 import asyncio
-import json
 import aiofiles
 from validations import Validations
 
@@ -13,7 +12,8 @@ async def json_get(payload):
             async with session.post(API_URL, json=payload, timeout=100) as resp:
                 jsonResp = await resp.json()
                 return jsonResp
-    except BaseException:
+    except BaseException as e:
+        print(e)
         print("Something went wrong. To prevent malfunction please withdraw your bans!!!")
         walletID = payload['wallet']
         source = payload['source']
@@ -21,69 +21,96 @@ async def json_get(payload):
         return None
 
 
+async def send_payment(walletID, paymentadd, address, pay):
+    payload = {
+        "action": "send",
+        "wallet": walletID,
+        "source": paymentadd,
+        "destination": address,
+        "amount": str(pay * 10 ** 29),
+    }
+    try:
+        response = await json_get(payload)
+        block = response['block']
+        print("Return block: " + block)
+    except Exception as e:
+        print(e)
+
+
 async def create_wallet():
     payload = {"action": "wallet_create"}
-    response = await json_get(payload)
     try:
+        response = await json_get(payload)
         walletID = response['wallet']
-        print("WalletID: " + walletID)
         return walletID
-    except:
-        print(response)
+    except Exception as e:
+        print(e)
         return None
+
+
+async def saverun(walletID, depositAddress):
+    print("Account and wallet ID are being save to lastrun.txt to minimise potential losses")
+    file = open("lastrun.txt", "w")
+    file.write("WalletID: " + walletID)
+    file.write("\nAddress: " + depositAddress)
+    file.close()
 
 
 async def account_create(walletID):
     payload = {
         "action": "account_create",
         "wallet": walletID,
-        "index": "1"
+        "index": "0"
         }
-    response = await json_get(payload)
     try:
-        print("Account and wallet ID are being save to lastrun.txt to minimise potential losses")
+        response = await json_get(payload)
         depositAddress = response['account']
-        file = open("lastrun.txt", "w")
-        file.write("WalletID: " + walletID)
-        file.write("\nAddress: " + depositAddress)
-        file.close()
         return depositAddress
-    except:
+    except Exception as e:
+        print(e)
         return None
+
+
+async def create_wallet_wseed(seed):
+    payload = {
+        "action": "wallet_create",
+        "seed": seed
+    }
+    try:
+        response = await json_get(payload)
+        walletID = response['wallet']
+        return walletID
+    except Exception as e:
+        print(e)
+        return 0
+
 
 async def load_seed():
     try:
         seed = input("Enter the seed of the account you want to use to distribute from: \n")
-        payload = {
-            "action": "wallet_create",
-            "seed": seed
-        }
-        response = await json_get(payload)
-        walletID = response['wallet']
-        depositAddress = response['account']
+        walletID = await create_wallet_wseed(seed)
+        depositAddress = await account_create(walletID)
         try:
-            print("Account and wallet ID are being save to lastrun.txt to minimise potential losses")
-            file = open("lastrun.txt", "w")
-            file.write("WalletID: " + walletID)
-            file.write("\nAddress: " + depositAddress)
-            file.close()
+            await saverun(walletID, depositAddress)
             return walletID, depositAddress
-        except:
+        except Exception as e:
+            print(e)
             print("lastrun.txt could not be written")
             return walletID, depositAddress
-    except:
+    except Exception as e:
+        print(e)
         print("Something went wrong loading the seed")
         return None
 
 
 async def send_funds(walletID, source):
-    valid_addresses = set()
+    valid_addresses = []
     async with aiofiles.open("addresses.txt") as file:
         async for line in file:
             if Validations.get_banano_address(line) is not None:
                 account = Validations.get_banano_address(line)
                 if Validations.validate_address(account) is True:
-                    valid_addresses.add(account)
+                    valid_addresses.append(account)
                 else:
                     print(account + " is not a valid account")
             else:
@@ -96,21 +123,8 @@ async def send_funds(walletID, source):
     print("Sending " + str(banperacc) + "ban to " + str(num_addresses) + " accounts!")
     for account in valid_addresses:
         account = account.strip()
-        payload = {
-            "action": "send",
-            "wallet": walletID,
-            "source": source,
-            "destination": account,
-            "amount": str(int(banperacc)*10**29),
-            }
         print("Sending " + str(banperacc) + "ban to " + account)
-        response = await json_get(payload)
-        try:
-            block = response['block']
-            print("Account: " + account + ":block: " + block)
-        except:
-            print(response)
-            await return_spare(walletID, source)
+        await send_payment(walletID, source, account, str(int(banperacc)*10**29))
 
 
 async def destroy_wallet(walletID):
@@ -119,13 +133,16 @@ async def destroy_wallet(walletID):
         "action": "wallet_destroy",
         "wallet": walletID
     }
-    response = await json_get(payload)
-    if response['destroyed'] == "1":
-        print("Wallet has been destroyed")
-    elif response['error'] == "Wallet not found":
-        print("Wallet already deleted")
-    else:
-        print("Wallet wasn't destroyed for some reason! Use wallet destroy function to manually destroy it")
+    try:
+        response = await json_get(payload)
+        if response['destroyed'] == "1":
+            print("Wallet has been destroyed")
+        elif response['error'] == "Wallet not found":
+            print("Wallet already deleted")
+        else:
+            print("Wallet wasn't destroyed for some reason! Use wallet destroy function to manually destroy it")
+    except Exception as e:
+        print(e)
 
 
 async def return_spare(walletID, depositAddress):
@@ -135,30 +152,19 @@ async def return_spare(walletID, depositAddress):
         return None
     else:
         print("\nThe temporary deposit address still has " + str(balanceint) + "ban remaining!")
-        while True:
+        while Validations.get_banano_address(returnAddr) is not None:
             returnAddr = input("Enter the banano address you would like to return the spare to \n")
-            if Validations.get_banano_address(returnAddr) is not None:
-                returnAddr = Validations.get_banano_address(returnAddr)
-                if Validations.validate_address(returnAddr) is True:
-                    print("Sending remaining bans to: " + returnAddr)
-                    break
-                else:
-                    print(returnAddr + " is not a valid account")
+            returnAddr = Validations.get_banano_address(returnAddr)
+            if Validations.validate_address(returnAddr) is True:
+                print("Sending remaining bans to: " + returnAddr)
+                break
             else:
-                print(returnAddr + " does not fit the form of an address")
-        payload = {
-            "action": "send",
-            "wallet": walletID,
-            "source": depositAddress,
-            "destination": returnAddr,
-            "amount": balanceraw
-        }
+                print(returnAddr + " is not a valid account")
         try:
-            response = await json_get(payload)
-            block = response['block']
-            print("Return block: " + block)
-        except:
-            print("Publishing block failed. Funds remain in distribution address\n " + payload)
+            await send_payment(walletID, depositAddress, returnAddr, balanceraw)
+        except Exception as e:
+            print(e)
+            print("Publishing block failed. Funds remain in distribution address\n")
 
 
 async def get_balance(address):
@@ -166,9 +172,13 @@ async def get_balance(address):
         "action": "account_balance",
         "account": address
     }
-    response = await json_get(payload)
-    balance = response['balance']
-    return balance
+    try:
+        response = await json_get(payload)
+        balance = response['balance']
+        return balance
+    except Exception as e:
+        print(e)
+        return 0
 
 
 async def process_funds(walletID, depositAddress):
@@ -203,7 +213,9 @@ async def main():
             if selection == '1':
                 print("\nCreating an account to deposit funds to...")
                 walletID = await create_wallet()
+                print("WalletID-" + walletID)
                 depositAddress = await account_create(walletID)
+                await saverun(walletID, depositAddress)
                 await process_funds(walletID, depositAddress)
             elif selection == '2':
                 print("This will distribute all of the bans in the account so ensure it only has the desired bans!!!")
