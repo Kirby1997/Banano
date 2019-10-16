@@ -43,17 +43,19 @@ async def main():
     source = input("Enter an address to find exchange wallets for: ")
     noTrans = input("How many transactions should be retrieved: ")
     known_labels = await read_file()
+    # Get the account's search history
     history = await get_history(source, int(noTrans))
-    addresses = set([])
+    addresses = set()
     intermediaries = {}
+    # Add the addresses in the history to a list
     for i in history:
         if i['type'] == "send":
             addresses.add(i['account'])
-
+    # Get the history of the addresses in the list
     for i in addresses:
-        history = await get_history(i, 200)
+        history = await get_history(i, 6)
         for x in history:
-            if x['account'] in known_labels and i not in intermediaries:
+            if x['account'] in known_labels and x['type'] == "send" and i not in intermediaries:
                 intermediaries[i] = known_labels[x['account']]
 
     print(json.dumps(intermediaries, indent=4))
