@@ -25,7 +25,7 @@ async def get_discord(account):
         for entry in users:
             if entry['address'] == account:
                 return entry["user_name"]
-        return account
+        return ""
 
 
 async def download_users():
