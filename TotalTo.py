@@ -6,7 +6,6 @@ import json
 import aiofiles
 
 API_URL = 'https://api-beta.banano.cc:443'
-UFW_API = 'https://bananobotapi.banano.cc/ufw/'
 
 
 async def json_get(payload):
