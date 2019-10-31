@@ -19,19 +19,17 @@ async def json_get(payload):
         print(e)
         return None
 
+
 async def get_history(address, noTrans = 50):
     payload = {"action": "account_history", "account": address, "count": noTrans}
     response = await json_get(payload)
     return response['history']
 
 
-async def get_discord(account):
-    with open("users.json", "r") as f:
-        users = json.load(f)
-        for entry in users:
-            if entry['address'] == account:
-                return entry["user_name"]
-        return ""
+async def get_discord(account, users):
+    for entry in users:
+        if entry['address'] == account:
+            totals[account][2] = entry["user_name"]
 
 
 async def get_inter(address, labels):
@@ -103,6 +101,7 @@ async def check_updates():
 # Dictionary to use an address as a key and store attributes in a list.
 totals = {}
 
+
 async def main():
     source = input("Enter an address to see transaction totals for: ")
     noTrans = input("How many transactions should be retrieved (default 50): ")
@@ -113,14 +112,13 @@ async def main():
     print("Getting the last ", noTrans, " transactions...")
     history = await get_history(source, noTrans)
 
-
     print("Searching history of account...")
     for transaction in history:
         amount = int(transaction['amount']) / 10 ** 29
         destination = transaction['account']
         if destination not in totals:
             # List is received, sent, Discord name, Exchange
-            totals[destination] = list([0, 0, "", ""])
+            totals[destination] = [0, 0, "", ""]
 
         if transaction['type'] == "receive":
             totals[destination][0] = totals[destination][0] + int(amount)
@@ -128,12 +126,13 @@ async def main():
         if transaction['type'] == "send":
             totals[destination][1] = totals[destination][1] + int(amount)
 
-    print("Identifying Discord users...")
-    coros = [get_discord(address) for address in totals]
-    names = await asyncio.gather(*coros)
+    print("Reading users.json file...")
+    with open("users.json", "r") as f:
+        users = json.load(f)
 
-    for address, name in zip(totals, names):
-        totals[address][2] = name
+    print("Identifying Discord users...")
+    coros = [get_discord(address, users) for address in totals]
+    await asyncio.gather(*coros)
 
     print("Loading in exchange list...")
     labels = await read_exchanges()
@@ -156,4 +155,3 @@ async def main():
 
 
 asyncio.run(main())
-
