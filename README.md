@@ -19,15 +19,17 @@ bitstring
 validations.py
 
 ## TotalTo.py 
-TotalTo.py is a tool for calculating the total amount of Banano a Banano address has sent to each address in its 
-transaction history.  
+TotalTo.py is a tool for calculating the total amount of Banano an account has sent and received from each address in its 
+transaction history. It will also resolve Discord usernames linked to addresses as well as identify what exchange an
+intermediary belongs to. Output is a csv file for easy sorting and searching.  
 
 The dependencies are:  
 asyncio  
 aiohttp  
-json
+aiofiles  
+json  
 
-## DiscordHunter.py
+## DiscordHunter.py (Depricated - functionality merged into TotalTo)
 DiscordHunter.py is a tool for identifying what Discord addresses a Banano address has links with. This is useful for 
 identifying alternative accounts.  
 
@@ -36,7 +38,7 @@ asyncio
 aiohttp  
 json
 
-## ExchangeFinder.py 
+## ExchangeFinder.py (Depricated - functionality merged into TotalTo)
 ExchangeFinder.py is a tool for identifying the intermediaries. It imports the "exchanges.txt" file, a colon separated 
 list of exchanges, gambling sites and aliases. The tool works by identifying whether an address sends Banano to an address
 which sends its Banano to an address in the list.  
