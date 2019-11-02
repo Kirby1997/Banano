@@ -66,7 +66,7 @@ async def get_inter(address, labels):
         history = await get_history(address, 1)
         for transaction in history:
             if transaction['account'] in labels and transaction['type'] == "send":
-                totals[address][3] = labels[transaction['account']]
+                totals[address][5] = labels[transaction['account']]
 
 
 async def download_users():
