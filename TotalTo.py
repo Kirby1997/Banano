@@ -28,7 +28,7 @@ async def get_history(address, noTrans = 50):
 async def get_discord(account, users):
     for entry in users:
         if entry['address'] == account:
-            totals[account][2] = entry["user_name"]
+            totals[account][2] = entry["user_last_known_name"]
 
 
 async def get_twitter(account, users):
@@ -207,8 +207,8 @@ async def main():
     labels = await read_exchanges()
 
     print("Searching for intermediaries to exchanges and gambling sites...")
-    coros = [get_inter(address, labels) for address in totals]
-    await asyncio.gather(*coros)
+    #inters = [get_inter(address, labels) for address in totals]
+    #await asyncio.gather(*inters)
 
     csv_columns = ['Address', 'Received', 'Sent', 'Discord', 'Twitter', 'Telegram', 'Exchange']
     csv_file = "totals.csv"
