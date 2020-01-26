@@ -43,6 +43,25 @@ async def get_telegram(account, users):
             totals[account][4] = entry[1]
 
 
+async def set_filename(account, discord, twitter, telegram):
+    for entry in discord:
+        if entry['address'] == account:
+            filename = entry["user_last_known_name"] + " - " + account + ".csv"
+            return filename
+    for entry in twitter:
+        if entry[0] == account:
+            filename = entry[1] + " - " + account + ".csv"
+            return filename
+    for entry in telegram:
+        if entry[0] == account:
+            filename = entry[1] + " - " + account + ".csv"
+            return filename
+
+    return "account.csv"
+
+
+
+
 async def format_txt(file):
     file = file.strip("((")
     file = file.strip("))")
@@ -211,10 +230,12 @@ async def main():
     #await asyncio.gather(*inters)
 
     csv_columns = ['Address', 'Received', 'Sent', 'Discord', 'Twitter', 'Telegram', 'Exchange']
-    csv_file = "totals.csv"
+
+    filename = await set_filename(source, users, twitter, telegram)
+
     try:
-        print("Writing totals to totals.csv")
-        with open(csv_file, 'w', newline='', encoding="utf-8") as csvfile:
+        print("Writing totals to " + filename)
+        with open(filename, 'w', newline='', encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(csv_columns)
             for address in totals:
