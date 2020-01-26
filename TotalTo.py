@@ -57,7 +57,7 @@ async def set_filename(account, discord, twitter, telegram):
             filename = entry[1] + " - " + account + ".csv"
             return filename
 
-    return "account.csv"
+    return account + ".csv"
 
 
 
@@ -79,7 +79,7 @@ async def format_txt(file):
 
 
 async def get_inter(address, labels):
-    if totals[address][2] != "":
+    if totals[address][2] != "" or totals[address][3] != "" or totals[address][4] != "":
         return ""
     else:
         history = await get_history(address, 1)
