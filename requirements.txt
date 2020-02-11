@@ -3,3 +3,4 @@ asyncio
 json
 aiofiles
 bitstring
+pandas
