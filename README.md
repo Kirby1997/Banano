@@ -16,7 +16,22 @@ asyncio
 json  
 aiofiles  
 bitstring  
-validations.py
+validations.py 
+
+ ## Spreadsheet Sender.py
+SendMulti.py is a tool for "raining" evenly across addresses inside of a CSV. Addresses should be under a header name 
+"addresses". The node used can be changed within the file Spreadsheet Sender. By default it uses the official public Banano API.
+The tool supports raining from a disposable address or a vanity address by importing a seed. Wallets are destroyed upon completion
+of sending and extra Banano can be returned. The amount of Banano sent to each account is specified at run time and it will
+not send any if there aren't enough funds in the wallet. Each address will only receive 1 payment even if the address is in
+the csv multiple times. As this was intended for on-going giveaways, a list of paid addresses is updated each time and addresses
+in this list will not receive a payment even if they exist in the CSV. This feature could also be used for blacklisting accounts.
+
+The dependencies are:    
+pandas  
+asyncio  
+aiohttp  
+validations.py  
 
 ## TotalTo.py 
 TotalTo.py is a tool for calculating the total amount of Banano an account has sent and received from each address in its 
