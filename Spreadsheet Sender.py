@@ -33,12 +33,10 @@ async def load_addresses():
         print(valid_addresses)
         f = open("paid.txt", "r")
         previous = set(f.read().splitlines())
-        print(previous)
-        print(type(previous))
         unpaid = valid_addresses.difference(previous)
-        print("Unpaid")
+        print(len(unpaid), " - unpaid:")
         print(unpaid)
-        input()
+        input("Press enter to continue")
         return unpaid
     except Exception as e:
         print(e)
