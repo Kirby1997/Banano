@@ -43,6 +43,16 @@ async def get_telegram(account, users):
             totals[account][4] = entry[1]
 
 
+async def get_inter(address, labels):
+    print(address)
+    if totals[address][2] == "" or totals[address][3] == "" or totals[address][4] == "":
+        history = await get_history(address, 1)
+        for transaction in history:
+            if transaction['account'] in labels and transaction['type'] == "send":
+                print(labels[transaction['account']])
+                totals[address][5] = labels[transaction['account']]
+
+
 async def set_filename(account, discord, twitter, telegram):
     for entry in discord:
         if entry['address'] == account:
@@ -60,8 +70,6 @@ async def set_filename(account, discord, twitter, telegram):
     return account + ".csv"
 
 
-
-
 async def format_txt(file):
     file = file.strip("((")
     file = file.strip("))")
@@ -76,16 +84,6 @@ async def format_txt(file):
     zipped = zip(addresses, names)
     zipped = set(zipped)
     return zipped
-
-
-async def get_inter(address, labels):
-    if totals[address][2] != "" or totals[address][3] != "" or totals[address][4] != "":
-        return ""
-    else:
-        history = await get_history(address, 1)
-        for transaction in history:
-            if transaction['account'] in labels and transaction['type'] == "send":
-                totals[address][5] = labels[transaction['account']]
 
 
 async def download_users():
@@ -226,8 +224,10 @@ async def main():
     labels = await read_exchanges()
 
     print("Searching for intermediaries to exchanges and gambling sites...")
-    #inters = [get_inter(address, labels) for address in totals]
-    #await asyncio.gather(*inters)
+    inters = [get_inter(address, labels) for address in totals]
+    await asyncio.gather(*inters)
+    print("Please wait 10 seconds...")
+    await asyncio.sleep(10)
 
     csv_columns = ['Address', 'Received', 'Sent', 'Discord', 'Twitter', 'Telegram', 'Exchange']
 
