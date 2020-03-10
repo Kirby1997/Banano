@@ -33,20 +33,21 @@ async def get_discord(account, users):
 
 async def get_twitter(account, users):
     for entry in users:
-        if entry[0] == account:
-            totals[account][3] = entry[1]
+        if entry['account'] == account:
+            totals[account][3] = entry["user_name"]
 
 
 async def get_telegram(account, users):
     for entry in users:
-        if entry[0] == account:
-            totals[account][4] = entry[1]
+        if entry['account'] == account:
+            totals[account][4] = entry["user_name"]
 
 
 async def get_inter(address, labels):
-    print(address)
     if totals[address][2] == "" or totals[address][3] == "" or totals[address][4] == "":
+        print(address)
         history = await get_history(address, 1)
+        await asyncio.sleep(0.5)
         for transaction in history:
             if transaction['account'] in labels and transaction['type'] == "send":
                 print(labels[transaction['account']])
@@ -59,31 +60,15 @@ async def set_filename(account, discord, twitter, telegram):
             filename = entry["user_last_known_name"] + " - " + account + ".csv"
             return filename
     for entry in twitter:
-        if entry[0] == account:
-            filename = entry[1] + " - " + account + ".csv"
+        if entry['account'] == account:
+            filename = entry['user_name'] + " - " + account + ".csv"
             return filename
     for entry in telegram:
-        if entry[0] == account:
-            filename = entry[1] + " - " + account + ".csv"
+        if entry['account'] == account:
+            filename = entry['user_name'] + " - " + account + ".csv"
             return filename
 
     return account + ".csv"
-
-
-async def format_txt(file):
-    file = file.strip("((")
-    file = file.strip("))")
-    names = []
-    addresses = []
-    for account in file.split("), ("):
-        # print(account)
-        account = account.split(", ")
-        names.append(account[1].strip("\'") + " - " + account[0].strip("\'"))
-        addresses.append(account[2].strip("\'"))
-
-    zipped = zip(addresses, names)
-    zipped = set(zipped)
-    return zipped
 
 
 async def download_users():
@@ -102,19 +87,19 @@ async def download_discord():
 
 
 async def download_twitter():
-    print("Downloading twitter.txt...")
+    print("Downloading twitter.json...")
     async with aiohttp.ClientSession() as session:
         async with session.get('https://ba.nanotipbot.com/users/twitter') as resp:
-            with open("twitter.txt", "wb") as f:
+            with open("twitter.json", "wb") as f:
                 async for data in resp.content.iter_chunked(1024):
                     f.write(data)
 
 
 async def download_telegram():
-    print("Downloading telegram.txt...")
+    print("Downloading telegram.json...")
     async with aiohttp.ClientSession() as session:
         async with session.get('https://ba.nanotipbot.com/users/telegram') as resp:
-            with open("telegram.txt", "wb") as f:
+            with open("telegram.json", "wb") as f:
                 async for data in resp.content.iter_chunked(1024):
                     f.write(data)
 
@@ -146,7 +131,7 @@ async def read_exchanges():
 async def check_updates():
     skipdlusers = False
     skipdlexch = False
-    if not os.path.exists("discord.json") or not os.path.exists("telegram.txt") or not os.path.exists("twitter.txt"):
+    if not os.path.exists("discord.json") or not os.path.exists("telegram.json") or not os.path.exists("twitter.json"):
         skipdlusers = True
         await download_users()
     if not os.path.exists("exchanges.txt"):
@@ -196,25 +181,25 @@ async def main():
 
     print("Reading discord.json file...")
     with open("discord.json", "r") as f:
-        users = json.load(f)
+        discord = json.load(f)
 
     print("Identifying Discord users...")
-    coros = [get_discord(address, users) for address in totals]
+    coros = [get_discord(address, discord) for address in totals]
     await asyncio.gather(*coros)
 
-    print("Reading twitter.txt file...")
-    with open("twitter.txt", "r") as f:
-        twitter = f.read()
-        twitter = await format_txt(twitter)
+    print("Reading twitter.json file...")
+    with open("twitter.json", "r") as f:
+        twitter = json.load(f)
+
 
     print("Identifying Twitter users...")
     coros = [get_twitter(address, twitter) for address in totals]
     await asyncio.gather(*coros)
 
-    print("Reading telegram.txt file...")
-    with open("telegram.txt", "r", encoding="utf-8") as f:
-        telegram = f.read()
-        telegram = await format_txt(telegram)
+    print("Reading telegram.json file...")
+    with open("telegram.json", "r", encoding="utf-8") as f:
+        telegram = json.load(f)
+
 
     print("Identifying Telegram users...")
     coros = [get_telegram(address, telegram) for address in totals]
@@ -223,15 +208,15 @@ async def main():
     print("Loading in exchange list...")
     labels = await read_exchanges()
 
-    print("Searching for intermediaries to exchanges and gambling sites...")
-    inters = [get_inter(address, labels) for address in totals]
-    await asyncio.gather(*inters)
-    print("Please wait 10 seconds...")
-    await asyncio.sleep(10)
+    #print("Searching for intermediaries to exchanges and gambling sites...")
+    #inters = [get_inter(address, labels) for address in totals]
+    #await asyncio.gather(*inters)
+    #print("Please wait 10 seconds...")
+    #await asyncio.sleep(10)
 
     csv_columns = ['Address', 'Received', 'Sent', 'Discord', 'Twitter', 'Telegram', 'Exchange']
 
-    filename = await set_filename(source, users, twitter, telegram)
+    filename = await set_filename(source, discord, twitter, telegram)
 
     try:
         print("Writing totals to " + filename)
