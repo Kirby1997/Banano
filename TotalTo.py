@@ -4,25 +4,35 @@ import csv
 import os.path
 import json
 import aiofiles
-
-API_URL = 'https://api-beta.banano.cc:443'
-
-
-async def json_get(payload):
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(API_URL, json=payload, timeout=100) as resp:
-                jsonResp = await resp.json()
-                return jsonResp
-    except Exception as e:
-        print(e)
-        return None
+import bananopy.banano as ban
 
 
 async def get_history(address, noTrans = 50):
-    payload = {"action": "account_history", "account": address, "count": noTrans}
-    response = await json_get(payload)
-    return response['history']
+    pagesize = 3000
+
+    if noTrans <= pagesize:
+        history = ban.account_history(address, noTrans)
+        return history["history"]
+
+    else:
+
+        rem = noTrans % pagesize
+        pages = (noTrans - rem) / pagesize
+        count = 0
+        offset = 0
+        full_history = []
+
+        while count < pages:
+            print("Downloading history: Page " + str(count+1) + "/" + str(pages))
+            history = ban.account_history(address, pagesize, offset=offset)
+            count = count + 1
+            full_history = full_history + history["history"]
+            offset = offset + pagesize
+
+        if rem != 0:
+            history = ban.account_history(address, rem, offset=offset)
+            full_history = full_history + history["history"]
+        return full_history
 
 
 async def get_discord(account, users):
@@ -45,7 +55,6 @@ async def get_telegram(account, users):
 
 async def get_inter(address, labels):
     if totals[address][2] == "" or totals[address][3] == "" or totals[address][4] == "":
-        print(address)
         history = await get_history(address, 1)
         await asyncio.sleep(0.5)
         for transaction in history:
@@ -58,6 +67,7 @@ async def set_filename(account, discord, twitter, telegram):
     for entry in discord:
         if entry['address'] == account:
             filename = entry["user_last_known_name"] + " - " + account + ".csv"
+            #filename = account + ".csv"
             return filename
     for entry in twitter:
         if entry['account'] == account:
@@ -163,8 +173,7 @@ async def main():
         noTrans = 50
 
     print("Getting the last ", noTrans, " transactions...")
-    history = await get_history(source, noTrans)
-
+    history = await get_history(source, int(noTrans))
     print("Searching history of account...")
     for transaction in history:
         amount = int(transaction['amount']) / 10 ** 29
@@ -191,7 +200,6 @@ async def main():
     with open("twitter.json", "r") as f:
         twitter = json.load(f)
 
-
     print("Identifying Twitter users...")
     coros = [get_twitter(address, twitter) for address in totals]
     await asyncio.gather(*coros)
@@ -199,7 +207,6 @@ async def main():
     print("Reading telegram.json file...")
     with open("telegram.json", "r", encoding="utf-8") as f:
         telegram = json.load(f)
-
 
     print("Identifying Telegram users...")
     coros = [get_telegram(address, telegram) for address in totals]
