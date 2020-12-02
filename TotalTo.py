@@ -5,6 +5,7 @@ import os.path
 import json
 import aiofiles
 import bananopy.banano as ban
+from bananopy.conversion import convert
 
 
 async def get_history(address, noTrans = 50):
@@ -53,6 +54,12 @@ async def get_telegram(account, users):
             totals[account][4] = entry["user_name"]
 
 
+async def get_telegram_old(account, users):
+    for entry in users:
+        if entry['account'] == account:
+            totals[account][4] = entry["user_name"]
+
+
 async def get_inter(address, labels):
     if totals[address][2] == "" or totals[address][3] == "" or totals[address][4] == "":
         history = await get_history(address, 1)
@@ -66,8 +73,8 @@ async def get_inter(address, labels):
 async def set_filename(account, discord, twitter, telegram):
     for entry in discord:
         if entry['address'] == account:
-            filename = entry["user_last_known_name"] + " - " + account + ".csv"
-            #filename = account + ".csv"
+            #filename = entry["user_last_known_name"] + " - " + account + ".csv"
+            filename = account + ".csv"
             return filename
     for entry in twitter:
         if entry['account'] == account:
@@ -176,7 +183,7 @@ async def main():
     history = await get_history(source, int(noTrans))
     print("Searching history of account...")
     for transaction in history:
-        amount = int(transaction['amount']) / 10 ** 29
+        amount = convert(int(transaction['amount']), "raw", "banano")
         destination = transaction['account']
         if destination not in totals:
             # List is received, sent, Discord name, Twitter name, Telegram name, Exchange
@@ -210,6 +217,14 @@ async def main():
 
     print("Identifying Telegram users...")
     coros = [get_telegram(address, telegram) for address in totals]
+    await asyncio.gather(*coros)
+
+    print("Reading telegram_old.json file...")
+    with open("telegram_old.json", "r", encoding="utf-8") as f:
+        telegram_old = json.load(f)
+
+    print("Identifying Telegram_old users...")
+    coros = [get_telegram_old(address, telegram_old) for address in totals]
     await asyncio.gather(*coros)
 
     print("Loading in exchange list...")
