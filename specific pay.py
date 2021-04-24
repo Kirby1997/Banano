@@ -7,6 +7,7 @@ API_URL = ''
 PIPPIN = ""
 
 
+
 async def json_get(payload, use_pippin=False):
     if use_pippin and PIPPIN != "":
         url = PIPPIN
@@ -23,51 +24,24 @@ async def json_get(payload, use_pippin=False):
         print("Something went wrong!!!")
 
 
-async def load_addresses():
-    filename = input("Enter the csv payment list here: \n")
+async def send_payment(walletID, paymentadd, address, pay):
+    use_pippin = True
+    payload = {
+        "action": "send",
+        "wallet": walletID,
+        "source": paymentadd,
+        "destination": address,
+        "amount": str(pay * 10 ** 29),
+    }
     try:
-        data = pd.read_csv(filename)
-        addresses = list(data["addresses"])
-        valid_addresses = set()
-
-        for address in addresses:
-            if Validations.get_banano_address(address) is not None:
-                valid_addresses.add(Validations.get_banano_address(address))
-        print("Total addresses: " + str(len(valid_addresses)))
-        try:
-            f = open("paid.txt", "r")
-        except:
-            open("paid.txt", "x")
-            f = open("paid.txt", "r")
-        previous = set(f.read().splitlines())
-        unpaid = valid_addresses.difference(previous)
-        print(len(unpaid), "unpaid:")
-        print(unpaid)
-        input("Press enter to continue")
-        return unpaid
+        response = await json_get(payload, use_pippin)
+        block = response['block']
+        print("Return block: " + block)
+        return block
     except Exception as e:
+        print(payload)
         print(e)
-
-    valid_addresses = set()
-    return valid_addresses
-
-
-async def get_pay():
-    pay = ""
-    while not isinstance(pay, int):
-        pay = input("How many banano is each to be paid? \n")
-        if pay == "0":
-            print("Enter something greater than 0!")
-            pay = ""
-        else:
-            try:
-                pay = int(pay)
-                return pay
-            except Exception as e:
-                print(e)
-                print("Please enter an integer!\n")
-    return 0
-
+        return "transaction failed"
 
 async def get_wallet():
     use_pippin = True
@@ -123,7 +97,7 @@ async def account_create(walletID):
             "action": "account_create",
             "wallet": walletID,
             "index": "0"
-        }
+            }
         response = await json_get(payload, use_pippin)
         try:
             depositAddress = response['account']
@@ -133,6 +107,13 @@ async def account_create(walletID):
             print(e)
             return None
 
+async def enough_bans(paymentadd, paytotal):
+    balanceraw = await get_balance(paymentadd)
+    balanceint = int(balanceraw) / 10 ** 29
+    if paytotal <= int(balanceint):
+        return True
+    else:
+        return False
 
 async def get_balance(address):
     payload = {
@@ -143,38 +124,10 @@ async def get_balance(address):
     balance = response['balance']
     return balance
 
-
-async def enough_bans(paymentadd, paytotal):
-    balanceraw = await get_balance(paymentadd)
-    balanceint = int(balanceraw) / 10 ** 29
-    if paytotal <= int(balanceint):
-        return True
-    else:
-        return False
-
-
-async def send_payment(walletID, paymentadd, address, pay):
-    use_pippin = True
-    payload = {
-        "action": "send",
-        "wallet": walletID,
-        "source": paymentadd,
-        "destination": address,
-        "amount": str(pay * 10 ** 29),
-    }
-    try:
-        response = await json_get(payload, use_pippin)
-        block = response['block']
-        print("Return block: " + block)
-    except Exception as e:
-        print(payload)
-        print(e)
-
-
 async def destroy_wallet(walletID):
     use_pippin = True
     destroy = input("Do you want to destroy the wallet used? [y/n]")
-    if destroy in ["yes", "Yes", "Y", "y"]:
+    if destroy in ["yes", "Yes", "Y", "y", ""]:
         print("\nDestroying wallet...")
         payload = {
             "action": "wallet_destroy",
@@ -190,23 +143,36 @@ async def destroy_wallet(walletID):
 
 
 async def main():
-    addresses = await load_addresses()
-    if len(addresses) > 0:
-        pay = await get_pay()
-        walletID = await get_wallet()
-        paymentadd = await account_create(walletID)
-        while not await enough_bans(paymentadd, len(addresses)*pay):
-            input("Please ensure " + str(paymentadd) + " has enough bans to pay " + str(len(addresses)*pay) + "banano\n")
-        total = len(addresses)
+    filename = input("Enter the csv payment list here: \n")
+    data = pd.read_csv(filename)
+    amounts = list(data["amount"])
+    total = 0
+    for amount in amounts:
+        total = total + amount
+    print("Total: " + str(total))
+    print(data)
 
-        f = open("paid.txt", "a+")
-        for index, address in enumerate(addresses, start=1):
-            print("Sending " + str(pay) + "ban to " + address + " - " + str(index) + "/" + str(total))
-            await send_payment(walletID, paymentadd, address, pay)
-            f.write(address + "\n")
-        f.close()
+    walletID = await get_wallet()
+    paymentadd = await account_create(walletID)
 
-        await destroy_wallet(walletID)
+    while not await enough_bans(paymentadd, total):
+        input("Please ensure " + str(paymentadd) + " has enough bans to pay " + str(total) + "banano\n")
+
+    f = open("paid.txt", "a+")
+    for index, row in data.iterrows():
+        print(row[0]) # address
+        if Validations.get_banano_address(row[0]) is not None:
+            print("IT'S AN ADDRESS")
+            print("Sending " + str(row[1]) + "ban to " + row[0] + " - " + str(index+1) + "/" + str(len(data)))
+            block = await send_payment(walletID, paymentadd, row[0], row[1])
+            f.write(row[0] + " - " + str(row[1]) + "\n Block: " + block + "\n")
+
+        else:
+            print("nonvalid")
+    f.close()
+
+
+    await destroy_wallet(walletID)
 
 
 asyncio.run(main())
