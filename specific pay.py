@@ -31,7 +31,7 @@ async def send_payment(walletID, paymentadd, address, pay):
         "wallet": walletID,
         "source": paymentadd,
         "destination": address,
-        "amount": str(pay * 10 ** 29),
+        "amount": str(int(pay*100) * 10 ** 27),
     }
     try:
         response = await json_get(payload, use_pippin)
@@ -149,14 +149,14 @@ async def main():
     total = 0
     for amount in amounts:
         total = total + amount
-    print("Total: " + str(total))
+    print("Total: " + str("%.2f" % total))
     print(data)
 
     walletID = await get_wallet()
     paymentadd = await account_create(walletID)
 
     while not await enough_bans(paymentadd, total):
-        input("Please ensure " + str(paymentadd) + " has enough bans to pay " + str(total) + "banano\n")
+        input("Please ensure " + str(paymentadd) + " has enough bans to pay " + str("%.2f" % total) + "banano\n")
 
     f = open("paid.txt", "a+")
     for index, row in data.iterrows():
