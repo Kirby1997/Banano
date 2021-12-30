@@ -2,11 +2,26 @@ from validations import Validations
 import pandas as pd
 import asyncio
 import aiohttp
+import decimal
 
 API_URL = ''
 PIPPIN = ""
 
 
+async def toraw(amount):
+    decimal.getcontext().prec = 41
+    if len(str(amount)) > 42:
+        return "Value too long"
+    pay = decimal.Decimal(str(amount))
+    neg = pay.as_tuple().exponent
+    if neg < -29:
+        return "Too many decimals"
+    if len(str(int(pay))) > 12:
+        return "Too many integers"
+    exp = 29
+    multiplier = 10 ** - neg
+    raw = str(int(pay * multiplier) * 10 ** (exp + neg))
+    return raw
 
 async def json_get(payload, use_pippin=False):
     if use_pippin and PIPPIN != "":
@@ -31,7 +46,7 @@ async def send_payment(walletID, paymentadd, address, pay):
         "wallet": walletID,
         "source": paymentadd,
         "destination": address,
-        "amount": str(int(pay*100) * 10 ** 27),
+        "amount": await toraw(pay),
     }
     try:
         response = await json_get(payload, use_pippin)
