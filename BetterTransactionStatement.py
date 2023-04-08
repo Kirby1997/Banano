@@ -69,7 +69,7 @@ currencies = ["aed",
 print(currencies)
 request_counter = 0
 currency = input("Enter a currency from the list above...\n")
-export = input("Enter Creeper Export file name...\n")
+creeperfile = input("Enter Creeper Export file name...\n")
 
 
 
@@ -142,7 +142,7 @@ def main():
                          "Alias", "Account Type", "Price",
                          "Amount", f"Amount({currency})",
                          "Balance", f"Balance({currency})", "Note"])
-        with open("export.csv", 'r') as export:
+        with open(creeperfile, 'r') as export:
             reader = csv.DictReader(export)
             lastdate = ""
             lastprice = ""
